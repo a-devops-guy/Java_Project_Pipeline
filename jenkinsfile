@@ -1,0 +1,160 @@
+pipeline
+{  
+    //pipeline runs in master by default - change to any label if there are multiple jenkins slave node
+    //custom workspace change CW variable
+    //Maven 'Maven-3-6-3' tool added in Jenkins->Global Configuration->Maven
+    parameters{
+        string(
+            defaultValue: 'https://github.com/jkk120496/Java_Project.git',
+            description: 'mandatory',
+            name: 'GIT_URL',
+            trim: false
+        )
+        choice(
+            choices: ['master', 'dev', 'stg'],
+            description: 'mandatory',
+            name: 'GIT_BRANCH'
+        )
+        string(
+            defaultValue: 'java_app',
+            description: 'mandatory',
+            name: 'NEXUS_REPOSITORY',
+            trim: false
+        )
+        string(
+            defaultValue: 'org.springframework.samples',
+            description: 'mandatory',
+            name: 'NEXUS_GROUP_ID',
+            trim: false
+        )
+        string(
+            defaultValue: '4.2.5-SNAPSHOT',
+            description: 'mandatory',
+            name: 'NEXUS_SNAPSHOT_VERSION',
+            trim: false
+        )
+    }
+
+    environment {
+        imagename = "test/java_app"
+        registryCredential = 'yenigul-dockerhub'
+        dockerImage = ''
+    }
+
+    agent{
+        node{   
+                label 'master' 
+                customWorkspace "E:/DevOps/workspace/${JOB_NAME}"
+            }
+    }
+
+    tools {
+        maven 'Maven-3-6-3' 
+    }
+    
+    stages{
+        //Git clone repo
+        stage('git'){
+            steps{
+                echo "${env.CW}${JOB_NAME}"
+                git branch: "${params.GIT_BRANCH}", credentialsId: 'Git-Kiran', url: "${params.GIT_URL}"
+            }
+        }
+        //Compilation and sonar quality check
+        //Sonar tool 'sonar-scanner-8' added in Jenkins -> Configuration -> SonarQube servers
+        stage('compile-sonarcheck'){
+            steps{
+                withSonarQubeEnv('sonar-scanner-8') { 
+                    bat "mvn validate compile sonar:sonar"
+                }
+            }
+        }
+        //pipeline fails if sonar quality doesnt meet the requirements
+        //create project and generate token 
+        //create Quality Profiles & gate as per requirement in sonar and add these to your soanar project
+        //add webhook in sonar http://<jenkins_ip>:<jenkins_port>/sonarqube-webhook/ with secret key
+        //add sonar url, token, weebhook key, Additional analysis properties: sonar.projectKey=<sonar_project_key> in SonarQube servers Configuration
+        stage('Qualitygate'){
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+              }
+            }
+            post{
+                  failure{
+                        echo "Pipeline aborted due to criteria not matching"
+                  }
+              }
+        }
+        //testing, packaging, intergrated test and generate site
+        //skips compilation as it is done in previous stage
+        stage('maven-doc'){
+            steps{
+                bat 'mvn site verify -Dmaven.main.skip'
+            }
+        }
+        //zips site, test, build log 
+        stage('zip test,site,build_log'){
+            steps{
+                bat "curl --silent --show-error http://admin:11dd7bc7dd07368e89fce2289792d3631f@localhost:8080/job/Java_Project/job/petclinic/2/consoleText > E:\\DevOps\\workspace\\${BUILD_TAG}\\target\\build_log.txt"
+                script{
+                    zip zipFile: 'target\\site.zip', dir: 'target\\site'
+                    zip zipFile: 'target\\test.zip', dir: 'target\\surefire-reports'
+                }
+            }
+        }
+        //upload to artifact
+        //create repo in nexus and edit this config
+        stage('upload2artifact'){
+            steps{
+                nexusArtifactUploader artifacts: [
+                        [
+                            artifactId: 'spring-petclinic', 
+                            classifier: '',
+                            file: 'target/petclinic.war', 
+                            type: 'war'
+                        ],
+                        [
+                            artifactId: 'spring-petclinic', 
+                            classifier: '',
+                            file: 'target/site.zip', 
+                            type: 'zip'
+                        ],
+                        [
+                            artifactId: 'spring-petclinic', 
+                            classifier: '',
+                            file: 'target/test.zip', 
+                            type: 'zip'
+                        ],
+                        [
+                            artifactId: 'spring-petclinic', 
+                            classifier: '',
+                            file: 'target/build_log.txt', 
+                            type: 'txt'
+                        ]
+                    ],
+                credentialsId: 'nexus', 
+                groupId: "${params.NEXUS_GROUP_ID}",
+                nexusUrl: 'localhost:8081', 
+                nexusVersion: 'nexus3', 
+                protocol: 'http', 
+                repository: "${params.NEXUS_REPOSITORY}",
+                version: "${params.NEXUS_SNAPSHOT_VERSION}"
+            }
+        }
+        stage('build image'){
+            steps{
+                script {
+                    dockerImage = docker.build("${imagename}:${env.BUILD_ID}")
+                }
+            }
+        }
+        stage('run docker'){
+            steps{
+                script{
+                    dockerImage.run('-p 8081:8081 -p 8082:8080 -d')
+                }
+            }
+        }
+    }
+}

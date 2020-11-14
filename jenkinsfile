@@ -36,8 +36,8 @@ pipeline
     }
 
     environment {
-        imagename = "test/java_app"
-        registryCredential = 'yenigul-dockerhub'
+        imagename = "jkk1204/docker"
+        registryCredential = 'docker_hub'
         dockerImage = ''
     }
 
@@ -142,6 +142,7 @@ pipeline
                 version: "${params.NEXUS_SNAPSHOT_VERSION}"
             }
         }
+        //build docker image from dockerfile .
         stage('build image'){
             steps{
                 script {
@@ -149,6 +150,17 @@ pipeline
                 }
             }
         }
+        //push image to hub 
+        stage('push image'){
+            steps{
+                script{
+                    docker.withRegistry('', registryCredential) {
+                        dockerImage.push("${env.BUILD_ID}")
+                    }
+                }
+            }
+        }
+        //create container from the build image
         stage('run docker'){
             steps{
                 script{

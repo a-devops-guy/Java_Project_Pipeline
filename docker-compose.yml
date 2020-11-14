@@ -1,0 +1,28 @@
+version: '3'
+services:
+  sonar:
+    ports:
+      - "9000:9000"
+    image: sonar:8.5.1-community
+    volumes:
+      - "sonar:"
+    networks: 
+      - jenkins
+    env_file: env-sonar.txt
+
+  nexus:
+    ports:
+      - "8081:8081"
+    image: sonatype/nexus:3.28.1
+    volumes:
+      - "nexus:"
+    networks: 
+      - jenkins
+    env_file: env-nexus.txt
+
+volumes:
+  sonar:
+  nexus:
+
+networks:
+  jenkins:

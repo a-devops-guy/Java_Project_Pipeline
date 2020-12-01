@@ -3,26 +3,30 @@ services:
   sonar:
     ports:
       - "9000:9000"
-    image: sonar:8.5.1-community
+    image: sonarqube:latest
     volumes:
-      - "sonar:"
+      - sonarqube:/opt/sonarqube/
+      - openjdk:/opt/java/openjdk/
     networks: 
       - jenkins
-    env_file: env-sonar.txt
+    #env_file: env-sonar.txt
 
   nexus:
     ports:
       - "8081:8081"
-    image: sonatype/nexus:3.28.1
+    image: sonatype/nexus3:latest
     volumes:
-      - "nexus:"
+      - sonartype:/opt/sonatype/
+      - nexus-data:/nexus-data/
     networks: 
       - jenkins
-    env_file: env-nexus.txt
+    #env_file: env-nexus.txt
 
 volumes:
-  sonar:
-  nexus:
+   sonarqube:
+   openjdk:
+   sonartype:
+   nexus-data:
 
 networks:
   jenkins:

@@ -8,4 +8,4 @@ target/*
 id_rsa
 id_rsa.pub
 plan
-env-*.txt
+env-*.env

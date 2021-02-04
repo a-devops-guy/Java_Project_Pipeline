@@ -35,3 +35,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           args: >
             -Dsonar.test.exclusions=tests/**
+            -Dsonar.organization=git
+            -Dsonar.projectKey=jkk120496_Java_Project_Pipeline
+            -Dsonar.sources=.
+            -Dsonar.host.url=https://sonarcloud.io

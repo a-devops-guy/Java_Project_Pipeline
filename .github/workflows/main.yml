@@ -15,8 +15,10 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  sonarcloud:
+     
   # This workflow contains a single job called "build"
-  build:
+    name: SonarCloud
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
@@ -35,7 +37,3 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           args: >
             -Dsonar.test.exclusions=tests/**
-            -Dsonar.organization=git
-            -Dsonar.projectKey=jkk120496_Java_Project_Pipeline
-            -Dsonar.sources=.
-            -Dsonar.host.url=https://sonarcloud.io

@@ -164,7 +164,7 @@ pipeline
         stage('run docker'){
             steps{
                 script{
-                    dockerImage.run('-p 8081:8081 -p 8082:8080 -d')
+                    dockerImage.run('-p 80:8080 -d')
                 }
             }
         }
